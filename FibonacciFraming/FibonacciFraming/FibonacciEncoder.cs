@@ -7,12 +7,12 @@ namespace FibonacciFraming;
 /// <summary>
 /// Deals with Fibonacci numbers
 /// </summary>
-internal class FibonacciEncoder
+internal static class FibonacciEncoder
 {
     /// <summary>
     /// Start of frame 'magic number'
     /// </summary>
-    public const int FrameHead = 0x0177; // 0101010101011000
+    internal const int FrameHead = 0x03D9; // 010101010101011000
 
     /// <summary>
     /// Fibonacci sequence, complete enough for uses in this project
@@ -24,11 +24,26 @@ internal class FibonacciEncoder
 
 
     /// <summary>
+    /// Add a frame header to the current output position.
+    /// </summary>
+    public static void AddFrameHeader(BitwiseStreamWrapper output)
+    {
+        FibonacciEncodeOne(FrameHead, output);
+    }
+
+    /// <summary>
     /// Encode a single value to an open writable bitstream.
     /// Note that this elides the leading <c>1</c> bit,
     /// </summary>
     public static void FibonacciEncodeOne(int value, BitwiseStreamWrapper output)
     {
+        // TODO: code points to skip:
+        //     12, 20, 21, 33, 34, 35, 46, 54, 55, 56, 57, 58, 67, 75, 76, 88..95,
+        //     101, 109, 110, 122, 123, 124, 135, 143..156, 164, 165, 177..179,
+        //     190, 198..202, 211, 219, 220, 232..254, 266..268, 279, 287..291,
+        //     300, 308, 309, 321..328, 334, 342, 343.
+        //     ...
+        //     Might be worth just having a byte:(bits,length) lookup.
         var n = value + 1;
 
         var res = 1;
@@ -83,5 +98,37 @@ internal class FibonacciEncoder
         }
 
         return accum - 1;
+    }
+
+    /// <summary>
+    /// Decode a single value from an open bitstream
+    /// </summary>
+    public static bool TryFibonacciDecodeOne(BitwiseStreamWrapper input, out int result) {
+        var lastWas1 = false;
+        var accum    = 0;
+        var pos      = 0;
+
+        var endPatternFound = false;
+        result = -1;
+
+        while (!input.IsEmpty()) {
+            if (!input.TryReadBit(out var f)) return false;
+
+            if (f > 0) {
+                if (lastWas1)
+                {
+                    endPatternFound = true;
+                    break;
+                }
+
+                lastWas1 = true;
+            } else lastWas1 = false;
+
+            accum += f * FibonacciSeq[pos + 2];
+            pos++;
+        }
+
+        result = accum - 1;
+        return endPatternFound;
     }
 }
