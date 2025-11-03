@@ -8,7 +8,7 @@ public class Transcoder
 
     /// <summary>
     /// Convert a byte array into a framed transmission signal.
-    /// The result is padded with leading zeroes.
+    /// The result is padded with trailing zeroes.
     /// </summary>
     public static byte[] ToSignal(byte[] rawData)
     {
