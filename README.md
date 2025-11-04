@@ -7,7 +7,9 @@ An experimental fault resilient binary signal format for byte data
 A digital transmission signal for packet data over any carrier capable of binary encoding.
 The signal is dense, self-synchronising and as error-resilient as reasonable.
 
-The signal is also ['whitened'](https://en.wikipedia.org/wiki/Decorrelation) for radio or electrical transmission.
+The signal is also [whitened](https://en.wikipedia.org/wiki/Decorrelation) for radio or electrical transmission.
+
+![Visualisation of effect on data](https://github.com/i-e-b/FibonacciFraming/blob/main/visualisation.png?raw=true "Visualisation")
 
 ## Implementation
 
