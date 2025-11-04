@@ -4,6 +4,9 @@ using NUnit.Framework;
 
 namespace FibFramingTests;
 
+/// <summary>
+/// These tests generate and check the various bit patterns and look-up tables.
+/// </summary>
 [TestFixture]
 public class CodePointGenerationTests
 {
@@ -80,8 +83,6 @@ public class CodePointGenerationTests
     [Test(Description = "This generates the main look-up tables for encode/decode")]
     public void fib_coding_mapping_tables()
     {
-        Console.WriteLine("// dec -> fib binary");
-
         var priorityMap = new int[256]; // Order the byte values. Shortest codes first
 
         for (int i = 0; i < 256; i++)
@@ -93,10 +94,12 @@ public class CodePointGenerationTests
         var lengths = new int[256]; // pattern lengths for bit patterns
 
 
-        var backMap      = new int[500];
-        var codePoint   = 0;
+        const int searchRange = 500;
+
+        var backMap      = new int[searchRange];
+        var codePoint    = 0;
         var maxCodePoint = 0;
-        for (var input = 0; input < 500; input++)
+        for (var input = 0; input < searchRange; input++)
         {
             var data = new MemoryStream();
             var src  = new BitwiseStreamWrapper(data, 0);
@@ -105,6 +108,7 @@ public class CodePointGenerationTests
             src.Flush();
             src.Rewind();
 
+            var haveOne     = false;
             var runningZero = 0;
             var runningOne  = 0;
             var ok          = true;
@@ -113,6 +117,7 @@ public class CodePointGenerationTests
             {
                 if (b == 1)
                 {
+                    haveOne = true;
                     runningOne++;
                     runningZero = 0;
                 }
@@ -122,7 +127,8 @@ public class CodePointGenerationTests
                     runningOne = 0;
                 }
 
-                if (runningZero > 4) ok = false;
+                if (!haveOne && runningZero > 3) ok = false; // up to 3 leading zeros (so that with padding it's a run of 4 max)
+                if (runningZero > 4) ok = false; // up to 4 zeros after a one.
 
                 if (runningOne > 1) break;
             }
@@ -153,6 +159,7 @@ public class CodePointGenerationTests
             if (codePoint >= 256) break;
         }
 
+        Assert.That(codePoint, Is.EqualTo(256), "Must fill all byte value slots");
 
         var bitsArray    = new StringBuilder();
         var lengthsArray = new StringBuilder();

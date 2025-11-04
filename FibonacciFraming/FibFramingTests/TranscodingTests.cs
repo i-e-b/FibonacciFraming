@@ -53,8 +53,12 @@ public class TranscodingTests
         var encodeBs = new BitwiseStreamWrapper(encoded, 0);
         encodeBs.Rewind();
 
-        Console.WriteLine("\r\nEncoded: "+encodeBs.ToBitString());
+        var encodedBitString = encodeBs.ToBitString().TrimEnd('0');
+        Console.WriteLine("\r\nEncoded: " + encodedBitString);
         encodeBs.Rewind();
+
+        Assert.That(encodedBitString, Does.Not.Contain("00000"), "Must have no more than 4 consecutive zeros");
+        Assert.That(encodedBitString, Does.Not.Contain("111"), "Must have no more than 2 consecutive ones");
 
         var valid = Transcoder.FromSignal(encoded, output);
 

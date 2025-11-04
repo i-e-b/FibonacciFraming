@@ -34,6 +34,6 @@ The resulting signal is highly patterned.
 
 ## To-do
 
-- [ ] Arrange code-point mapping to remove long `0` sample states, ideally no more than 4. Maybe skip values with large `0` runs, as we have spare before hitting 14 bits
+- [x] Arrange code-point mapping to remove long `0` sample states, ideally no more than 4. Maybe skip values with large `0` runs, as we have spare before hitting 14 bits
 - [ ] Rearrange the code points to give shortest codes to inputs `0x00`, `0xFF`, and longest codes into `0x01..0x1F` (to encode ASCII slightly more efficiently)
 - [ ] Add Reed-Solomon correction
