@@ -5,7 +5,9 @@ An experimental fault resilient binary signal format for byte data
 ## Purpose
 
 A digital transmission signal for packet data over any carrier capable of binary encoding.
-The signal should be dense, self-synchronising and as error-resilient as reasonable.
+The signal is dense, self-synchronising and as error-resilient as reasonable.
+
+The signal is also ['whitened'](https://en.wikipedia.org/wiki/Decorrelation) for radio or electrical transmission.
 
 ## Implementation
 

@@ -1,4 +1,7 @@
-﻿using System.Text;
+﻿using System.Diagnostics;
+using System.Drawing;
+using System.Drawing.Imaging;
+using System.Text;
 using FibonacciFraming;
 using NUnit.Framework;
 
@@ -98,5 +101,58 @@ public class TranscodingTests
         Console.WriteLine($"\r\n Original data = {input.Length} bytes; Encoded = {encoded.Length} bytes; {percent:0.0}%");
 
         Assert.That(valid, Is.True);
+    }
+
+    [Test]
+    public void data_visualisation()
+    {
+        var bytes = File.ReadAllBytes("nunit.framework.dll");
+
+        using var input   = new MemoryStream(bytes);
+        using var encoded = new MemoryStream();
+
+        var sw = Stopwatch.StartNew();
+        Transcoder.ToSignal(input, encoded);
+        sw.Stop();
+
+        Console.WriteLine($"Input: {input.Length} bytes; Encoded: {encoded.Length} bytes; Took {sw.ElapsedMilliseconds} ms;");
+
+        using var fileBmp = new Bitmap(512, 512, PixelFormat.Format24bppRgb);
+        using var encBmp = new Bitmap(512, 512, PixelFormat.Format24bppRgb);
+
+        var fileBits = new BitwiseStreamWrapper(input, 10240); fileBits.Rewind();
+        var encBits  = new BitwiseStreamWrapper(encoded, 10240); encBits.Rewind();
+
+        int repeatedOnes = 0;
+        int repeatedZeros = 0;
+
+        for (int y = 0; y < 256; y++)
+        {
+            for (int x = 0; x < 256; x++)
+            {
+                var fileBit = fileBits.ReadBit() == 0;
+                var encBit  = encBits.ReadBit() == 0;
+
+                if (encBit)
+                {
+                    repeatedZeros++;
+                    repeatedOnes = 0;
+                }
+                else
+                {
+                    repeatedOnes++;
+                    repeatedZeros = 0;
+                }
+
+                if (repeatedZeros > 4) throw new Exception("Invariant failed: More than 4 zeros");
+                if (repeatedOnes > 2) throw new Exception("Invariant failed: More than 2 ones");
+
+                fileBmp.SetPixel(x, y, fileBit ? Color.BlueViolet : Color.AliceBlue);
+                encBmp.SetPixel(x, y, encBit ? Color.DarkBlue : Color.Azure);
+            }
+        }
+
+        fileBmp.SaveBmp("FilePattern.bmp");
+        encBmp.SaveBmp("EncodedPattern.bmp");
     }
 }
