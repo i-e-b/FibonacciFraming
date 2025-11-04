@@ -8,8 +8,37 @@ using NUnit.Framework;
 namespace FibFramingTests;
 
 [TestFixture]
-public class TranscodingTests
+public class BasicTranscodingTests
 {
+    [Test]
+    public void short_binary_message_transcode()
+    {
+        const string message = "Hello, \0\0\0world!";
+
+        using var input   = new MemoryStream(Encoding.UTF8.GetBytes(message));
+        input.Seek(0, SeekOrigin.Begin);
+
+        using var encoded = new MemoryStream();
+        using var output  = new MemoryStream();
+
+        Transcoder.WriteMessageToStream(input, encoded);
+
+        var encodeBs = new BitwiseStreamWrapper(encoded, 0);
+        encodeBs.Rewind();
+
+        Console.WriteLine("\r\nEncoded: "+encodeBs.ToBitString());
+        encodeBs.Rewind();
+
+        var valid = Transcoder.ReadMessageFromStream(encoded, output);
+
+        Console.WriteLine("\r\nDecoded: "+Encoding.UTF8.GetString(output.ToArray()));
+
+        var percent = 100.0 * encoded.Length / input.Length;
+        Console.WriteLine($"\r\n Original data = {input.Length} bytes; Encoded = {encoded.Length} bytes; {percent:0.0}%");
+
+        Assert.That(valid, Is.True);
+    }
+
     [Test]
     public void short_text_message_transcode()
     {
@@ -21,7 +50,7 @@ public class TranscodingTests
         using var encoded = new MemoryStream();
         using var output  = new MemoryStream();
 
-        Transcoder.ToSignal(input, encoded);
+        Transcoder.WriteMessageToStream(input, encoded);
 
         var encodeBs = new BitwiseStreamWrapper(encoded, 0);
         encodeBs.Rewind();
@@ -29,7 +58,7 @@ public class TranscodingTests
         Console.WriteLine("\r\nEncoded: "+encodeBs.ToBitString());
         encodeBs.Rewind();
 
-        var valid = Transcoder.FromSignal(encoded, output);
+        var valid = Transcoder.ReadMessageFromStream(encoded, output);
 
         Console.WriteLine("\r\nDecoded: "+Encoding.UTF8.GetString(output.ToArray()));
 
@@ -50,7 +79,7 @@ public class TranscodingTests
         using var encoded = new MemoryStream();
         using var output  = new MemoryStream();
 
-        Transcoder.ToSignal(input, encoded);
+        Transcoder.WriteMessageToStream(input, encoded);
 
         var encodeBs = new BitwiseStreamWrapper(encoded, 0);
         encodeBs.Rewind();
@@ -62,7 +91,7 @@ public class TranscodingTests
         Assert.That(encodedBitString, Does.Not.Contain("00000"), "Must have no more than 4 consecutive zeros");
         Assert.That(encodedBitString, Does.Not.Contain("111"), "Must have no more than 2 consecutive ones");
 
-        var valid = Transcoder.FromSignal(encoded, output);
+        var valid = Transcoder.ReadMessageFromStream(encoded, output);
 
         Console.WriteLine("\r\nDecoded: "+Encoding.UTF8.GetString(output.ToArray()));
 
@@ -81,24 +110,27 @@ public class TranscodingTests
         using var encoded = new MemoryStream();
         using var output  = new MemoryStream();
 
-        Transcoder.ToSignal(input, encoded);
+        var encodeTime = Stopwatch.StartNew();
+        Transcoder.WriteMessageToStream(input, encoded);
+        encodeTime.Stop();
 
         var encodeBs = new BitwiseStreamWrapper(encoded, 0);
         encodeBs.Rewind();
 
-        //var encodedBitString = encodeBs.ToBitString().TrimEnd('0');
-        //Console.WriteLine("\r\nEncoded: " + encodedBitString);
-        //encodeBs.Rewind();
-//
-  //      Assert.That(encodedBitString, Does.Not.Contain("00000"), "Must have no more than 4 consecutive zeros");
-    //    Assert.That(encodedBitString, Does.Not.Contain("111"), "Must have no more than 2 consecutive ones");
+        var encodedBitString = encodeBs.ToBitString().TrimEnd('0');
+        encodeBs.Rewind();
 
-        var valid = Transcoder.FromSignal(encoded, output);
+        Assert.That(encodedBitString, Does.Not.Contain("00000"), "Must have no more than 4 consecutive zeros");
+        Assert.That(encodedBitString, Does.Not.Contain("111"), "Must have no more than 2 consecutive ones");
 
-        //Console.WriteLine("\r\nDecoded: "+Encoding.UTF8.GetString(output.ToArray()));
+        var decodeTime = Stopwatch.StartNew();
+        var valid = Transcoder.ReadMessageFromStream(encoded, output);
+        decodeTime.Stop();
+
 
         var percent = 100.0 * encoded.Length / input.Length;
-        Console.WriteLine($"\r\n Original data = {input.Length} bytes; Encoded = {encoded.Length} bytes; {percent:0.0}%");
+        Console.WriteLine($"\r\n Original data = {input.Length} bytes; Encoded = {encoded.Length} bytes ({percent:0.0}%);" +
+                          $" Encode: {encodeTime.ElapsedMilliseconds} ms; Decode: {decodeTime.ElapsedMilliseconds} ms;");
 
         Assert.That(valid, Is.True);
     }
@@ -112,10 +144,11 @@ public class TranscodingTests
         using var encoded = new MemoryStream();
 
         var sw = Stopwatch.StartNew();
-        Transcoder.ToSignal(input, encoded);
+        Transcoder.WriteMessageToStream(input, encoded);
         sw.Stop();
 
-        Console.WriteLine($"Input: {input.Length} bytes; Encoded: {encoded.Length} bytes; Took {sw.ElapsedMilliseconds} ms;");
+        var percent = 100.0 * encoded.Length / input.Length;
+        Console.WriteLine($"Input: {input.Length} bytes; Encoded: {encoded.Length} bytes ({percent:0.0}%); Took {sw.ElapsedMilliseconds} ms;");
 
         using var fileBmp = new Bitmap(512, 512, PixelFormat.Format24bppRgb);
         using var encBmp = new Bitmap(512, 512, PixelFormat.Format24bppRgb);

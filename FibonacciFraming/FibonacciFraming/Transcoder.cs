@@ -9,7 +9,7 @@ public class Transcoder
     /// Convert a byte data into a framed transmission signal.
     /// The result is padded with trailing zeroes.
     /// </summary>
-    public static void ToSignal(Stream input, Stream output)
+    public static void WriteMessageToStream(Stream input, Stream output)
     {
         var dst = new BitwiseStreamWrapper(output, 0);
 
@@ -38,24 +38,25 @@ public class Transcoder
     /// Convert transmission signal data in byte data.
     /// Returns <c>true</c> if there were no errors, <c>false</c> if any errors are detected.
     /// </summary>
-    public static bool FromSignal(Stream input, Stream output)
+    public static bool ReadMessageFromStream(Stream input, Stream output)
     {
         var src = new BitwiseStreamWrapper(input, 0);
 
-        var sawHeader = false;
-        var sawFooter = false;
-        var noErrors = true;
+        var sawHeader  = false;
+        var sawFooter  = false;
+        var noErrors   = true;
+        var skipLeadIn = true;
 
-        // TODO:
-        //    - Ignore extra zeroes before frame head
+        // TODO: handle garbage data before the frame head.
 
-        while (FibonacciEncoder.TryFibonacciDecodeOne(src, out var sample))
+        while (FibonacciEncoder.TryFibonacciDecodeOnePadded(src, skipLeadIn, out var sample))
         {
+            skipLeadIn = false;
             if (sample == FibonacciEncoder.FrameHead)
             {
                 // Start of message.
                 // If found after start, then we have an error
-                if (sawHeader) break;
+                if (sawHeader) break; // TODO: need to signal that the stream could be rewound to the start of this head to try again
                 sawHeader = true;
             }
             else if (sample == FibonacciEncoder.FrameFoot)
@@ -76,15 +77,9 @@ public class Transcoder
                 if (byteVal < 0) noErrors = false; // bit pattern we don't output
                 else output.WriteByte((byte)byteVal);
             }
-
-            // Read the padding bit
-            if (!src.TryReadBit(out var zero) || zero != 0)
-            {
-                // Error
-                noErrors = false;
-            }
         }
 
+        Console.WriteLine($"head:{sawHeader}; foot:{sawFooter}; clean:{noErrors};");
         return sawHeader && sawFooter && noErrors;
     }
 }

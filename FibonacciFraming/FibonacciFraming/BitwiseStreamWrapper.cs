@@ -30,7 +30,7 @@ public class BitwiseStreamWrapper
         _readMask = 1;
         _writeMask = 0x80;
         _nextOut = 0;
-        _currentIn = 0;
+        _currentIn = -1;
     }
 
     /// <summary>
@@ -129,12 +129,9 @@ public class BitwiseStreamWrapper
     public bool TryReadBit(out int b)
     {
         b = 0;
-        if (_inRunOut)
-        {
-            return false;
-        }
+        if (_inRunOut) return false;
 
-        if (_readMask == 1)
+        if (_readMask == 1 || _currentIn < 0)
         {
             _currentIn = _original.ReadByte();
             if (_currentIn < 0)
@@ -155,42 +152,6 @@ public class BitwiseStreamWrapper
     }
 
     /// <summary>
-    /// Read 8 bits from the stream. These might not be aligned to a byte boundary
-    /// </summary>
-    /// <returns></returns>
-    public byte ReadByteUnaligned()
-    {
-        byte b = 0;
-        for (int i = 0x80; i != 0; i >>= 1)
-        {
-            if (!TryReadBit(out var v)) break;
-            b |= (byte)(i * v);
-        }
-
-        return b;
-    }
-
-    /// <summary>
-    /// Write 8 bits to the stream. These might not be aligned to a byte boundary
-    /// </summary>
-    public void WriteByteUnaligned(byte value)
-    {
-        for (int i = 0x80; i != 0; i >>= 1)
-        {
-            WriteBit((value & i) != 0);
-        }
-    }
-
-    /// <summary>
-    /// Write 8 bits to the stream. These will be aligned to a byte boundary. Extra zero bits may be inserted to force alignment
-    /// </summary>
-    public void WriteByteAligned(byte value)
-    {
-        Flush();
-        _original.WriteByte(value);
-    }
-
-    /// <summary>
     /// Seek underlying stream to start
     /// </summary>
     public void Rewind()
@@ -202,14 +163,6 @@ public class BitwiseStreamWrapper
         _writeMask = 0x80;
         _nextOut = 0;
         _currentIn = 0;
-    }
-
-    /// <summary>
-    /// Returns true if the original data has been exhausted
-    /// </summary>
-    public bool IsEmpty()
-    {
-        return _inRunOut;
     }
 
     /// <summary>
