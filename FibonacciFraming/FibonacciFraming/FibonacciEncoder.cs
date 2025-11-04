@@ -12,7 +12,9 @@ internal static class FibonacciEncoder
     /// <summary>
     /// Start of frame 'magic number'
     /// </summary>
-    internal const int FrameHead = 0x03D9; // 010101010101011000
+    internal const int FrameHead = 0x03D9; // 010101010101011
+
+    internal const int FrameFoot = 0x0349; // 101010101010011
 
     /// <summary>
     /// Fibonacci sequence, complete enough for uses in this project
@@ -29,6 +31,14 @@ internal static class FibonacciEncoder
     public static void AddFrameHeader(BitwiseStreamWrapper output)
     {
         FibonacciEncodeOne(FrameHead, output);
+    }
+
+    /// <summary>
+    /// Add a frame footer to the current output position.
+    /// </summary>
+    public static void AddFrameFooter(BitwiseStreamWrapper output)
+    {
+        FibonacciEncodeOne(FrameFoot, output);
     }
 
     /// <summary>
@@ -79,25 +89,13 @@ internal static class FibonacciEncoder
     }
 
     /// <summary>
-    /// Decode a single value from an open bitstream
+    /// Decode a single value from an open bitstream.
+    /// Returns <c>-1</c> on error or end-of-stream.
     /// </summary>
-    public static int FibonacciDecodeOne(BitwiseStreamWrapper input) {
-        var lastWas1 = false;
-        var accum    = 0;
-        var pos      = 0;
-
-        while (!input.IsEmpty()) {
-            if (!input.TryReadBit(out var f)) break;
-            if (f > 0) {
-                if (lastWas1) break;
-                lastWas1 = true;
-            } else lastWas1 = false;
-
-            accum += f * FibonacciSeq[pos + 2];
-            pos++;
-        }
-
-        return accum - 1;
+    public static int FibonacciDecodeOne(BitwiseStreamWrapper input)
+    {
+        if (TryFibonacciDecodeOne(input, out var result)) return result;
+        return -1;
     }
 
     /// <summary>
@@ -130,5 +128,46 @@ internal static class FibonacciEncoder
 
         result = accum - 1;
         return endPatternFound;
+    }
+
+    /// <summary>
+    /// Encode a Fibonacci code into an int
+    /// </summary>
+    public static void FibonacciEncodeInt(int value, out int output, out int length)
+    {
+        var n = value + 1;
+
+        var res   = 1;
+        var count = 1;
+
+        // find the smallest fibonacci number greater than `n`
+        int f = 1, k = 1;
+        while (f <= n)
+        {
+            f = FibonacciSeq[++k];
+        }
+
+        // decompose back through the sequence
+        while (--k > 1)
+        {
+            f = FibonacciSeq[k];
+            count++;
+            res <<= 1;
+
+            if (f <= n)
+            {
+                res |= 1;
+                n -= f;
+            }
+        }
+
+        // Output bits in order (with '11' pattern last)
+        length = count;
+        output = 0;
+        for (int i = 0; i < count; i++)
+        {
+            output = (output << 1) | (res & 1);
+            res >>= 1;
+        }
     }
 }

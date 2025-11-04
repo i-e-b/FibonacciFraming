@@ -31,6 +31,9 @@ so the final length of damaged data is not likely to be the same as the input.
 The resulting signal is highly patterned.
 `1` states are always either 1 or 2 samples long, `0` states are between 1 and 11 samples long.
 
-(TODO: 'whiten' the data to remove long `0` sample states, ideally no more than 4.
-Maybe skip values with large `0` runs, as we have spare before hitting 14 bits)
 
+## To-do
+
+- [ ] Arrange code-point mapping to remove long `0` sample states, ideally no more than 4. Maybe skip values with large `0` runs, as we have spare before hitting 14 bits
+- [ ] Rearrange the code points to give shortest codes to inputs `0x00`, `0xFF`, and longest codes into `0x01..0x1F` (to encode ASCII slightly more efficiently)
+- [ ] Add Reed-Solomon correction

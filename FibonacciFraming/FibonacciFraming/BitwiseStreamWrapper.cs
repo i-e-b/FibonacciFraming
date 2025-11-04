@@ -1,4 +1,6 @@
-﻿namespace FibonacciFraming;
+﻿using System.Text;
+
+namespace FibonacciFraming;
 
 /// <summary>
 /// A bitwise read/write wrapper around a byte stream.
@@ -197,19 +199,18 @@ public class BitwiseStreamWrapper
     }
 
     /// <summary>
-    /// Returns true if data (including run-out data) can be read
+    /// Represent this stream as a binary string.
+    /// This will read the base stream from current position to the end.
     /// </summary>
-    public bool CanRead()
+    public string ToBitString()
     {
-        return _runoutBits > 0;
-    }
+        var sb = new StringBuilder();
 
-    /// <summary>
-    /// Returns true if at least the given number of BYTES are available in the original data (i.e. excludes run-out)
-    /// </summary>
-    public bool HasHeadspace(int byteSize)
-    {
-        var avail = _original.Length - _original.Position;
-        return avail >= byteSize;
+        while (TryReadBit(out var b))
+        {
+            sb.Append(b == 1 ? '1' : '0');
+        }
+
+        return sb.ToString();
     }
 }
