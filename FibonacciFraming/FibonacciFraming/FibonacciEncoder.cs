@@ -24,6 +24,11 @@ internal static class FibonacciEncoder
         0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765, 10946, 17711, 28657, 46368, 75025, 121393, 196418
     ];
 
+    /// <summary>
+    /// Maximum bit position to accept as an input
+    /// </summary>
+    private static readonly int MaxPos = FibonacciSeq.Length - 3;
+
 
     /// <summary>
     /// Add a frame header to the current output position.
@@ -99,7 +104,7 @@ internal static class FibonacciEncoder
     }
 
     /// <summary>
-    /// Decode a single value from an open bitstream
+    /// Decode a single value from an open bitstream.
     /// </summary>
     public static bool TryFibonacciDecodeOne(BitwiseStreamWrapper input, out int result) {
         var lastWas1 = false;
@@ -124,6 +129,8 @@ internal static class FibonacciEncoder
 
             accum += f * FibonacciSeq[pos + 2];
             pos++;
+
+            if (pos > MaxPos) return false;
         }
 
         result = accum - 1;

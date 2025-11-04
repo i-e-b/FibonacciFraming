@@ -82,15 +82,19 @@ public class CodePointGenerationTests
     {
         Console.WriteLine("// dec -> fib binary");
 
-        var bitsArray    = new StringBuilder();
-        var lengthsArray = new StringBuilder();
-        var backmapArray      = new StringBuilder();
+        var priorityMap = new int[256]; // Order the byte values. Shortest codes first
 
-        bitsArray.AppendLine   ("private static readonly int[] BitPatterns = [");
-        lengthsArray.AppendLine("private static readonly int[] BitLengths = [");
+        for (int i = 0; i < 256; i++)
+        {
+            priorityMap[i] = i; // No priority
+        }
+
+        var bits    = new int[256]; // bit patterns for byte values
+        var lengths = new int[256]; // pattern lengths for bit patterns
+
 
         var backMap      = new int[500];
-        var codePoints   = 0;
+        var codePoint   = 0;
         var maxCodePoint = 0;
         for (var input = 0; input < 500; input++)
         {
@@ -104,7 +108,6 @@ public class CodePointGenerationTests
             var runningZero = 0;
             var runningOne  = 0;
             var ok          = true;
-            var sb          = new StringBuilder();
 
             while (src.TryReadBit(out var b))
             {
@@ -121,19 +124,20 @@ public class CodePointGenerationTests
 
                 if (runningZero > 4) ok = false;
 
-                sb.Append(b == 1 ? '1' : '0');
                 if (runningOne > 1) break;
             }
 
             if (ok)
             {
-                FibonacciEncoder.FibonacciEncodeInt(input, out var bits, out var length);
-                bitsArray.AppendLine($"    {bits}, // {codePoints:000} -> {sb} ({input})");
-                lengthsArray.AppendLine($"    {length}, // {codePoints:000} -> {sb} ({input})");
-                backMap[input] = codePoints;
+                FibonacciEncoder.FibonacciEncodeInt(input, out var bitPattern, out var length);
+
+                bits[priorityMap[codePoint]] = bitPattern;
+                lengths[priorityMap[codePoint]] = length;
+
+                backMap[input] = priorityMap[codePoint];
                 maxCodePoint = input;
 
-                codePoints++;
+                codePoint++;
             }
             else
             {
@@ -146,12 +150,34 @@ public class CodePointGenerationTests
 
             Assert.That(result, Is.EqualTo(input));
 
-            if (codePoints >= 256) break;
+            if (codePoint >= 256) break;
+        }
+
+
+        var bitsArray    = new StringBuilder();
+        var lengthsArray = new StringBuilder();
+        var backmapArray = new StringBuilder();
+        var sb           = new StringBuilder();
+
+        bitsArray.AppendLine("/// <summary>\n    /// Encoded bit patterns for bytes. These can have leading zeroes, so must be paired\n    /// with the matching <see cref=\"BitLengths\"/> entry.\n    /// </summary>\n    public static readonly int[] BitPatterns = [");
+        lengthsArray.AppendLine("/// <summary>\n    /// Encoded bit patterns lengths for bytes. These pair with the <see cref=\"BitPatterns\"/> table.\n    /// </summary>\n    public static readonly int[] BitLengths = [");
+        for (int i = 0; i < 256; i++)
+        {
+            var pattern = bits[i];
+            var length  = lengths[i];
+            sb.Clear();
+            for (int j = length - 1; j >= 0; j--)
+            {
+                sb.Append((((pattern >> j) & 1) == 1) ? '1' : '0');
+            }
+
+            bitsArray.AppendLine($"    {pattern}, // {i:000} -> {sb} ({i})");
+            lengthsArray.AppendLine($"    {length}, // {i:000} -> {sb} ({i})");
         }
         bitsArray.AppendLine("];");
         lengthsArray.AppendLine("];");
 
-        backmapArray.AppendLine("private static readonly int[] BackMap = [");
+        backmapArray.AppendLine("/// <summary>\n    /// Mapping from raw Fibonacci encoded value to the appropriate <see cref=\"BitPatterns\"/> entry.\n    /// A value of <c>-1</c> indicates an invalid code point.\n    /// This is for decoding.\n    /// </summary>\n    public static readonly int[] BackMap = [");
         for (int i = 0; i <= maxCodePoint; i++)
         {
             backmapArray.AppendLine($"    {backMap[i]},");
@@ -159,8 +185,10 @@ public class CodePointGenerationTests
         }
         backmapArray.AppendLine("];");
 
+        Console.WriteLine("namespace FibonacciFraming;\n\n/// <summary>\n/// Look-up tables for encoding and decoding\n/// </summary>\ninternal static class LookupTables\n{");
         Console.WriteLine(bitsArray);
         Console.WriteLine(lengthsArray);
         Console.WriteLine(backmapArray);
+        Console.WriteLine("\n}");
     }
 }

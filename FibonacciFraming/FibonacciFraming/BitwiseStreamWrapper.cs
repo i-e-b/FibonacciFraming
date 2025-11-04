@@ -76,6 +76,20 @@ public class BitwiseStreamWrapper
         }
     }
 
+
+    /// <summary>
+    /// Write a bit pattern from an integer.
+    /// </summary>
+    /// <param name="pattern">Bits to set. Read in most-significant-first order, with least significant bit as last output.</param>
+    /// <param name="length">Number of bits to write. These should be at the least-significant end of the int</param>
+    public void WritePattern(int pattern, int length)
+    {
+        for (int i = length - 1; i >= 0; i--)
+        {
+            WriteBit((pattern >> i) & 1);
+        }
+    }
+
     /// <summary>
     /// Read a single bit value from the stream.
     /// Returns 1 or 0. Will return all zeros during run-out.

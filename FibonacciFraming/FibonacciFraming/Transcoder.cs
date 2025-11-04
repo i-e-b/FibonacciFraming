@@ -21,7 +21,10 @@ public class Transcoder
         int b;
         while ((b = input.ReadByte()) > -1)
         {
-            FibonacciEncoder.FibonacciEncodeOne(b, dst); // Write the byte
+            var pattern = LookupTables.BitPatterns[b];
+            var length  = LookupTables.BitLengths[b];
+
+            dst.WritePattern(pattern, length);
             dst.WriteBit(0); // pad the end
         }
 
@@ -44,15 +47,13 @@ public class Transcoder
         var noErrors = true;
 
         // TODO:
-        //    - If we get more than 15 bits without a stop (`011`), this should trigger an error
-        //    - Trim off data before frame head
-        //    - Ignore zeroes before frame head
+        //    - Ignore extra zeroes before frame head
 
         while (FibonacciEncoder.TryFibonacciDecodeOne(src, out var sample))
         {
             if (sample == FibonacciEncoder.FrameHead)
             {
-                // Ignore frame headers at start.
+                // Start of message.
                 // If found after start, then we have an error
                 if (sawHeader) break;
                 sawHeader = true;
@@ -60,18 +61,20 @@ public class Transcoder
             else if (sample == FibonacciEncoder.FrameFoot)
             {
                 // End of message.
-                // If found at start, then we have an error
+                // If found before header, then we have an error
                 sawFooter = true;
                 break;
             }
-            else if (sample is > 255 or < 0)
+            else if (sample >= LookupTables.BackMap.Length)
             {
                 // Error, but keep going?
                 noErrors = false;
             }
             else
             {
-                if (sawHeader) output.WriteByte((byte)sample);
+                var byteVal = LookupTables.BackMap[sample];
+                if (byteVal < 0) noErrors = false; // bit pattern we don't output
+                else output.WriteByte((byte)byteVal);
             }
 
             // Read the padding bit
