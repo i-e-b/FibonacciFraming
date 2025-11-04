@@ -11,8 +11,8 @@ namespace FibFramingTests;
 public class CodePointGenerationTests
 {
     [Test]
-    [TestCase("header", "010101010101011")] // header pattern
-    [TestCase("footer", "101010101010011")] // footer pattern
+    [TestCase("header", "1010101010101011")] // header pattern
+    [TestCase("footer", "0101010101010011")] // footer pattern
     public void frame_header_and_footer_generation(string name, string pattern)
     {
         var data = new MemoryStream();
@@ -46,7 +46,7 @@ public class CodePointGenerationTests
         var encoded = src.ToBitString();
         Console.WriteLine("Encoded: "+encoded);
 
-        Assert.That(encoded, Does.StartWith("010101010101011"), "Make sure we have the 01 repeating pattern");
+        Assert.That(encoded, Does.StartWith("1010101010101011"), "Make sure we have the 01 repeating pattern");
 
         src.Rewind();
 
@@ -70,7 +70,7 @@ public class CodePointGenerationTests
         var encoded = src.ToBitString();
         Console.WriteLine("Encoded: "+encoded);
 
-        Assert.That(encoded, Does.StartWith("101010101010011"), "Make sure we have the 01 repeating pattern");
+        Assert.That(encoded, Does.StartWith("0101010101010011"), "Make sure we have the 01 repeating pattern");
 
         src.Rewind();
 
@@ -183,8 +183,8 @@ public class CodePointGenerationTests
                 sb.Append((((pattern >> j) & 1) == 1) ? '1' : '0');
             }
 
-            bitsArray.AppendLine($"    {pattern}, // {i:000} -> {sb} ({i})");
-            lengthsArray.AppendLine($"    {length}, // {i:000} -> {sb} ({i})");
+            bitsArray.AppendLine($"    0x{pattern:X4}, // {i:000} -> {sb}");
+            lengthsArray.AppendLine($"    0x{length:X2}, // {i:000} -> {sb}");
         }
         bitsArray.AppendLine("];");
         lengthsArray.AppendLine("];");
@@ -192,7 +192,7 @@ public class CodePointGenerationTests
         backmapArray.AppendLine("/// <summary>\n    /// Mapping from raw Fibonacci encoded value to the appropriate <see cref=\"BitPatterns\"/> entry.\n    /// A value of <c>-1</c> indicates an invalid code point.\n    /// This is for decoding.\n    /// </summary>\n    public static readonly int[] BackMap = [");
         for (int i = 0; i <= maxCodePoint; i++)
         {
-            backmapArray.AppendLine($"    {backMap[i]},");
+            backmapArray.AppendLine($"    {backMap[i]}, // {i}");
 
         }
         backmapArray.AppendLine("];");
@@ -206,7 +206,7 @@ public class CodePointGenerationTests
 
     private static int[] BuildPriorityMap()
     {
-        var priorityBytes  = "__ etaoinsrhldcumfgpwybvkjqxz"u8.ToArray();
+        var priorityBytes  = "__ etaoinsErThAlOdIcNuSmRfHgLpDwCyUbMvFkGjPqWxYzBVKJQXZ\r\n,.-\"'(){}"u8.ToArray();
         priorityBytes[0] = 0x00;
         priorityBytes[1] = 0xFF;
         var remainingBytes = new Dictionary<int, bool>();

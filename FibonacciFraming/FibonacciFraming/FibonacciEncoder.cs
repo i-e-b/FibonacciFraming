@@ -12,9 +12,9 @@ internal static class FibonacciEncoder
     /// <summary>
     /// Start of frame 'magic number'
     /// </summary>
-    internal const int FrameHead = 0x03D9; // 010101010101011
+    internal const int FrameHead = 0x063B; // 1010101010101011
 
-    internal const int FrameFoot = 0x0349; // 101010101010011
+    internal const int FrameFoot = 0x0552; // 0101010101010011
 
     /// <summary>
     /// Fibonacci sequence, complete enough for uses in this project

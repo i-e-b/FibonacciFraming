@@ -8,7 +8,7 @@ namespace FibFramingTests;
 public class TranscodingTests
 {
     [Test]
-    public void short_message_transcode()
+    public void short_text_message_transcode()
     {
         const string message = "Hello, world!";
 
@@ -36,7 +36,6 @@ public class TranscodingTests
         Assert.That(valid, Is.True);
     }
 
-
     [Test]
     public void longer_text_message_transcode()
     {
@@ -63,6 +62,37 @@ public class TranscodingTests
         var valid = Transcoder.FromSignal(encoded, output);
 
         Console.WriteLine("\r\nDecoded: "+Encoding.UTF8.GetString(output.ToArray()));
+
+        var percent = 100.0 * encoded.Length / input.Length;
+        Console.WriteLine($"\r\n Original data = {input.Length} bytes; Encoded = {encoded.Length} bytes; {percent:0.0}%");
+
+        Assert.That(valid, Is.True);
+    }
+
+    [Test]
+    public void file_data_transcode()
+    {
+        var bytes = File.ReadAllBytes("FibonacciFraming.dll");
+
+        using var input   = new MemoryStream(bytes);
+        using var encoded = new MemoryStream();
+        using var output  = new MemoryStream();
+
+        Transcoder.ToSignal(input, encoded);
+
+        var encodeBs = new BitwiseStreamWrapper(encoded, 0);
+        encodeBs.Rewind();
+
+        //var encodedBitString = encodeBs.ToBitString().TrimEnd('0');
+        //Console.WriteLine("\r\nEncoded: " + encodedBitString);
+        //encodeBs.Rewind();
+//
+  //      Assert.That(encodedBitString, Does.Not.Contain("00000"), "Must have no more than 4 consecutive zeros");
+    //    Assert.That(encodedBitString, Does.Not.Contain("111"), "Must have no more than 2 consecutive ones");
+
+        var valid = Transcoder.FromSignal(encoded, output);
+
+        //Console.WriteLine("\r\nDecoded: "+Encoding.UTF8.GetString(output.ToArray()));
 
         var percent = 100.0 * encoded.Length / input.Length;
         Console.WriteLine($"\r\n Original data = {input.Length} bytes; Encoded = {encoded.Length} bytes; {percent:0.0}%");
