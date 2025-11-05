@@ -26,6 +26,13 @@ public class MessageResult
     public bool CleanData { get; set; }
 
     /// <summary>
+    /// Set to <c>true</c> if the resulting message ended in a message <b>header</b>.
+    /// This indicates desynchronisation, and the consumer should expect the
+    /// next message to be missing its header.
+    /// </summary>
+    public bool RunOnDetected { get; set; }
+
+    /// <summary>
     /// Returns <c>true</c> if the message was fully formed with no errors.
     /// </summary>
     public bool ValidMessage => BitsRead >= 32 && SawHeader && SawFooter && CleanData;
@@ -33,6 +40,6 @@ public class MessageResult
     /// <inheritdoc />
     public override string ToString()
     {
-        return $"[Bits={BitsRead}; Header={SawHeader}; Footer={SawFooter}; Clean={CleanData};]";
+        return $"[Bits={BitsRead}; Header={SawHeader}; Footer={SawFooter}; Clean={CleanData}; RunOn={RunOnDetected};]";
     }
 }

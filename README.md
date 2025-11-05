@@ -41,8 +41,6 @@ In these cases, the encoded data may be slightly shorter than the input.
 In the average case for random data, expect output that is 140% of the input length.
 Worst case is 15 bits out for each 8 bits in, plus 32 bits for header and footer.
 
-## To-do
+The transcoder does not buffer more than a few bytes of input or output, and should be
+safe to run against streams of unbounded length.
 
-- [x] Arrange code-point mapping to remove long `0` sample states, ideally no more than 4. Maybe skip values with large `0` runs, as we have spare before hitting 14 bits
-- [x] Rearrange the code points to give shortest codes to inputs `0x00`, `0xFF`, and longest codes into `0x01..0x1F` (to encode ASCII slightly more efficiently)
-- [ ] Add Reed-Solomon correction

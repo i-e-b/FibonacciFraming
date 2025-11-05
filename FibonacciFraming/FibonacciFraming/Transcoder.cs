@@ -16,8 +16,8 @@ public static class Transcoder
         var dst = new BitwiseStreamWrapper(output, 0);
 
         // Always start with the frame header
-        FibonacciEncoder.AddFrameHeader(dst);
-        dst.WriteBit(0); // pad the end
+        dst.WritePattern(LookupTables.FrameHeadPattern, LookupTables.FrameHeadLength);
+        dst.WriteBit(0);
 
         // Write all bytes
         int b;
@@ -27,14 +27,54 @@ public static class Transcoder
             var length  = LookupTables.BitLengths[b];
 
             dst.WritePattern(pattern, length);
-            dst.WriteBit(0); // pad the end
+            dst.WriteBit(0);
         }
 
         // End with the frame footer to fully close messages
-        FibonacciEncoder.AddFrameFooter(dst);
-        dst.WriteBit(0); // pad the end
+        dst.WritePattern(LookupTables.FrameFootPattern, LookupTables.FrameFootLength);
+        dst.WriteBit(0);
 
         dst.Flush();
+    }
+
+    /// <summary>
+    /// Convert a byte data into a framed transmission signal.
+    /// The result is padded with trailing zeroes.
+    /// </summary>
+    public static async Task WriteMessageToStreamAsync(Stream input, Stream output)
+    {
+        var dst = new BitwiseStreamWrapper(output, 0);
+
+        // Always start with the frame header
+        await dst.WritePatternAsync(LookupTables.FrameHeadPattern, LookupTables.FrameHeadLength);
+        await dst.WriteBitAsync(0);
+
+        // Write all bytes
+        int b;
+        while ((b = input.ReadByte()) > -1)
+        {
+            var pattern = LookupTables.BitPatterns[b];
+            var length  = LookupTables.BitLengths[b];
+
+            await dst.WritePatternAsync(pattern, length);
+            await dst.WriteBitAsync(0);
+        }
+
+        // End with the frame footer to fully close messages
+        await dst.WritePatternAsync(LookupTables.FrameFootPattern, LookupTables.FrameFootLength);
+        await dst.WriteBitAsync(0);
+
+        await dst.FlushAsync();
+    }
+
+    /// <summary>
+    /// Convert a byte data into a framed transmission signal.
+    /// The result is padded with trailing zeroes.
+    /// </summary>
+    public static void WriteMessageToStream(byte[] input, Stream output)
+    {
+        using var src = new MemoryStream(input);
+        WriteMessageToStream(src, output);
     }
 
     /// <summary>
@@ -48,8 +88,8 @@ public static class Transcoder
         var dst = new BitwiseStreamWrapper(mem, 0);
 
         // Always start with the frame header
-        FibonacciEncoder.AddFrameHeader(dst);
-        dst.WriteBit(0); // pad the end
+        dst.WritePattern(LookupTables.FrameHeadPattern, LookupTables.FrameHeadLength);
+        dst.WriteBit(0);
 
         // Write all bytes
         int b;
@@ -59,12 +99,12 @@ public static class Transcoder
             var length  = LookupTables.BitLengths[b];
 
             dst.WritePattern(pattern, length);
-            dst.WriteBit(0); // pad the end
+            dst.WriteBit(0);
         }
 
         // End with the frame footer to fully close messages
-        FibonacciEncoder.AddFrameFooter(dst);
-        dst.WriteBit(0); // pad the end
+        dst.WritePattern(LookupTables.FrameFootPattern, LookupTables.FrameFootLength);
+        dst.WriteBit(0);
         dst.Flush();
         dst.Rewind();
 
@@ -85,18 +125,24 @@ public static class Transcoder
         var noErrors    = true;
         var skipLeadIn  = true;
         var anyRealData = false;
+        var runOn       = false;
 
         while (FibonacciEncoder.TryFibonacciDecodeOnePadded(src, skipLeadIn, out var sample))
         {
             skipLeadIn = false;
-            if (sample == FibonacciEncoder.FrameHead)
+            if (sample == LookupTables.FrameHead)
             {
                 // Start of message.
                 // If found after start, then we have an error
-                if (sawHeader && anyRealData) break; // TODO: need to signal that the stream could be rewound to the start of this head to try again
+                if (sawHeader && anyRealData)
+                {
+                    runOn = true;
+                    break;
+                }
+
                 sawHeader = true;
             }
-            else if (sample == FibonacciEncoder.FrameFoot)
+            else if (sample == LookupTables.FrameFoot)
             {
                 // End of message.
                 // If found before header, then we have an error
@@ -128,6 +174,80 @@ public static class Transcoder
         result.BitsRead = src.BitsRead;
         result.SawHeader = sawHeader;
         result.SawFooter = sawFooter;
+        result.RunOnDetected = runOn;
+        result.CleanData = noErrors;
+
+        return result;
+    }
+
+    /// <summary>
+    /// Convert transmission signal data in byte data.
+    /// Returns <c>true</c> if there were no errors, <c>false</c> if any errors are detected.
+    /// </summary>
+    public static async Task<MessageResult> ReadMessageFromStreamAsync(Stream input, Stream output)
+    {
+        var src    = new BitwiseStreamWrapper(input, 0);
+        var result = new MessageResult();
+
+        var sawHeader   = false;
+        var sawFooter   = false;
+        var noErrors    = true;
+        var skipLeadIn  = true;
+        var anyRealData = false;
+        var runOn       = false;
+
+        while (true)
+        {
+            var symbol = await FibonacciEncoder.TryFibonacciDecodeOnePaddedAsync(src, skipLeadIn);
+            if (symbol.Failed) break;
+
+            var sample = symbol.Sample;
+            skipLeadIn = false;
+            if (sample == LookupTables.FrameHead)
+            {
+                // Start of message.
+                // If found after start, then we have an error
+                if (sawHeader && anyRealData)
+                {
+                    runOn = true;
+                    break;
+                }
+
+                sawHeader = true;
+            }
+            else if (sample == LookupTables.FrameFoot)
+            {
+                // End of message.
+                // If found before header, then we have an error
+                sawFooter = true;
+                break;
+            }
+            else if (sample >= LookupTables.BackMap.Length)
+            {
+                // Error, but keep going?
+                Console.WriteLine($"Fault: Bad pattern = {sample};");
+                noErrors = false;
+            }
+            else
+            {
+                var byteVal = LookupTables.BackMap[sample];
+                if (byteVal < 0)
+                {
+                    Console.WriteLine($"Fault: Bad pattern = {sample};");
+                    noErrors = false; // bit pattern we don't output
+                }
+                else
+                {
+                    anyRealData = true;
+                    output.WriteByte((byte)byteVal);
+                }
+            }
+        }
+
+        result.BitsRead = src.BitsRead;
+        result.SawHeader = sawHeader;
+        result.SawFooter = sawFooter;
+        result.RunOnDetected = runOn;
         result.CleanData = noErrors;
 
         return result;

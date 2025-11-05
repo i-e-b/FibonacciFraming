@@ -6,6 +6,45 @@
 internal static class LookupTables
 {
     /// <summary>
+    /// Start of frame 'magic number'
+    /// </summary>
+    public const int FrameHead = 0x063B; // 1010101010101011
+
+    /// <summary>
+    /// Bit pattern of frame start 'magic number'
+    /// </summary>
+    public const int FrameHeadPattern = 0b1010101010101011;
+
+    /// <summary>
+    /// Number of bits in the <see cref="FrameHead"/> pattern
+    /// </summary>
+    public const int FrameHeadLength = 16;
+
+    /// <summary>
+    /// End of frame 'magic number'
+    /// </summary>
+    public const int FrameFoot = 0x0552; // 0101010101010011
+
+    /// <summary>
+    /// Bit pattern of frame end 'magic number'
+    /// </summary>
+    public const int FrameFootPattern = 0b0101010101010011; //0x0552; // 0101010101010011
+
+    /// <summary>
+    /// Number of bits in the <see cref="FrameFoot"/> pattern
+    /// </summary>
+    public const int FrameFootLength = 16;
+
+    /// <summary>
+    /// Fibonacci sequence, complete enough for uses in this project
+    /// </summary>
+    public static readonly int[] FibonacciSeq =
+    [
+        0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377, 610, 987, 1597, 2584, 4181, 6765, 10946,
+        17711, 28657, 46368, 75025, 121393, 196418, 317811, 514229, 832040, 1346269, 2178309, 3524578
+    ];
+
+    /// <summary>
     /// Encoded bit patterns for bytes. These can have leading zeroes, so must be paired
     /// with the matching <see cref="BitLengths"/> entry.
     /// </summary>

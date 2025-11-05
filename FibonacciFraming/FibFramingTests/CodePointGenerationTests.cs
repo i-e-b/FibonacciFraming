@@ -1,5 +1,4 @@
 ﻿using System.Text;
-using FibonacciFraming;
 using FibonacciFraming.Internal;
 using NUnit.Framework;
 
@@ -35,7 +34,7 @@ public class CodePointGenerationTests
     [Test(Description = "Ensure the frame header has the correct pattern")]
     public void fib_coding_frame_header()
     {
-        var input = FibonacciEncoder.FrameHead;
+        var input = LookupTables.FrameHead;
         var data  = new MemoryStream();
         var src   = new BitwiseStreamWrapper(data, 0);
 
@@ -59,7 +58,7 @@ public class CodePointGenerationTests
     [Test(Description = "Ensure the frame footer has the correct pattern")]
     public void fib_coding_frame_footer()
     {
-        var input = FibonacciEncoder.FrameFoot;
+        var input = LookupTables.FrameFoot;
         var data  = new MemoryStream();
         var src   = new BitwiseStreamWrapper(data, 0);
 

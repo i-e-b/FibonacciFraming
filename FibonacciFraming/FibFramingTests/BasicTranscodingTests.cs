@@ -5,7 +5,6 @@ using System.Text;
 using FibonacciFraming;
 using FibonacciFraming.Internal;
 using NUnit.Framework;
-using Encoder = System.Text.Encoder;
 
 namespace FibFramingTests;
 
@@ -104,6 +103,38 @@ public class BasicTranscodingTests
     }
 
     [Test]
+    public void multiple_messages_can_be_queued_together()
+    {
+        using var encoded = new MemoryStream();
+
+        Transcoder.WriteMessageToStream("Message one"u8.ToArray(), encoded);
+        Transcoder.WriteMessageToStream("Message two"u8.ToArray(), encoded);
+        Transcoder.WriteMessageToStream("A very different message"u8.ToArray(), encoded);
+
+        encoded.Seek(0, SeekOrigin.Begin);
+
+        var messagesDecoded = 0;
+        while (true)
+        {
+            using var output = new MemoryStream();
+
+            var result = Transcoder.ReadMessageFromStream(encoded, output);
+            if (!result.ValidMessage) break;
+
+            Console.WriteLine("\r\nDecoded: " + Encoding.UTF8.GetString(output.ToArray()));
+            messagesDecoded++;
+        }
+
+        Assert.That(messagesDecoded, Is.EqualTo(3));
+    }
+
+    [Test]
+    public async Task can_transcode_message_with_async()
+    {
+        Assert.Inconclusive("Not yet implemented");
+    }
+
+    [Test]
     public void file_data_transcode()
     {
         var bytes = File.ReadAllBytes("FibonacciFraming.dll");
@@ -135,6 +166,14 @@ public class BasicTranscodingTests
                           $" Encode: {encodeTime.ElapsedMilliseconds} ms; Decode: {decodeTime.ElapsedMilliseconds} ms;");
 
         Assert.That(valid.ValidMessage, Is.True);
+    }
+
+    [Test]
+    public void can_handle_huge_data_sets()
+    {
+        // TODO: make a test stream that generates a huge number of bytes,
+        //       and one that ignores bytes. Feed this through encode and decode.
+        Assert.Inconclusive("Not yet implemented");
     }
 
     [Test]

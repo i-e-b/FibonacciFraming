@@ -13,7 +13,8 @@ public class BitwiseStreamWrapper
 
     private bool _inRunOut;
     private byte _readMask, _writeMask;
-    private int  _nextOut,  _currentIn;
+    private byte  _nextOut;
+    private int  _currentIn;
     private long _bitsRead;
 
     /// <summary>
@@ -47,9 +48,23 @@ public class BitwiseStreamWrapper
     public void Flush()
     {
         if (_writeMask == 0x80) return; // no pending byte
-        _original.WriteByte((byte)_nextOut);
+        _original.WriteByte(_nextOut);
         _writeMask = 0x80;
         _nextOut = 0;
+        _original.Flush();
+    }
+
+    /// <summary>
+    /// Write the current pending output byte (if any)
+    /// </summary>
+    public async Task FlushAsync()
+    {
+        if (_writeMask == 0x80) return; // no pending byte
+        var b0 = new[] { _nextOut };
+        _writeMask = 0x80;
+        _nextOut = 0;
+        await _original.WriteAsync(b0.AsMemory(0, 1));
+        await _original.FlushAsync();
     }
 
     /// <summary>
@@ -60,12 +75,11 @@ public class BitwiseStreamWrapper
         if (value) _nextOut |= _writeMask;
         _writeMask >>= 1;
 
-        if (_writeMask == 0)
-        {
-            _original.WriteByte((byte)_nextOut);
-            _writeMask = 0x80;
-            _nextOut = 0;
-        }
+        if (_writeMask != 0) return;
+
+        _original.WriteByte(_nextOut);
+        _writeMask = 0x80;
+        _nextOut = 0;
     }
 
     /// <summary>
@@ -76,14 +90,29 @@ public class BitwiseStreamWrapper
         if (value != 0) _nextOut |= _writeMask;
         _writeMask >>= 1;
 
-        if (_writeMask == 0)
-        {
-            _original.WriteByte((byte)_nextOut);
-            _writeMask = 0x80;
-            _nextOut = 0;
-        }
+        if (_writeMask != 0) return;
+
+        _original.WriteByte(_nextOut);
+        _writeMask = 0x80;
+        _nextOut = 0;
     }
 
+    /// <summary>
+    /// Write a single bit value to the stream
+    /// </summary>
+    public async Task WriteBitAsync(int value)
+    {
+        if (value != 0) _nextOut |= _writeMask;
+        _writeMask >>= 1;
+
+        if (_writeMask == 0)
+        {
+            var b0 = new[] { _nextOut };
+            _writeMask = 0x80;
+            _nextOut = 0;
+            await _original.WriteAsync(b0.AsMemory(0, 1));
+        }
+    }
 
     /// <summary>
     /// Write a bit pattern from an integer.
@@ -92,9 +121,22 @@ public class BitwiseStreamWrapper
     /// <param name="length">Number of bits to write. These should be at the least-significant end of the int</param>
     public void WritePattern(int pattern, int length)
     {
-        for (int i = length - 1; i >= 0; i--)
+        for (var i = length - 1; i >= 0; i--)
         {
             WriteBit((pattern >> i) & 1);
+        }
+    }
+
+    /// <summary>
+    /// Write a bit pattern from an integer.
+    /// </summary>
+    /// <param name="pattern">Bits to set. Read in most-significant-first order, with least significant bit as last output.</param>
+    /// <param name="length">Number of bits to write. These should be at the least-significant end of the int</param>
+    public async Task WritePatternAsync(int pattern, int length)
+    {
+        for (int i = length - 1; i >= 0; i--)
+        {
+            await WriteBitAsync((pattern >> i) & 1);
         }
     }
 
@@ -162,6 +204,36 @@ public class BitwiseStreamWrapper
     }
 
     /// <summary>
+    /// Read a single bit value from the stream.
+    /// Returns <c>1</c> or <c>0</c> on success.
+    /// Returns <c>-1</c> on failure.
+    /// </summary>
+    public async Task<int> TryReadBitAsync()
+    {
+        if (_inRunOut) return -1;
+
+        if (_readMask == 1 || _currentIn < 0)
+        {
+            var buffer = new byte[1];
+            var read   = await _original.ReadAsync(buffer.AsMemory(0, 1));
+            if (read < 1)
+            {
+                _inRunOut = true;
+                return -1;
+            }
+
+            _readMask = 0x80;
+        }
+        else
+        {
+            _readMask >>= 1;
+        }
+
+        _bitsRead++;
+        return ((_currentIn & _readMask) != 0) ? 1 : 0;
+    }
+
+    /// <summary>
     /// Seek underlying stream to start
     /// </summary>
     public void Rewind()
@@ -191,4 +263,6 @@ public class BitwiseStreamWrapper
 
         return sb.ToString();
     }
+
+
 }
