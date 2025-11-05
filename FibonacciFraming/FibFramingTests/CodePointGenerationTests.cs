@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using FibonacciFraming;
+using FibonacciFraming.Internal;
 using NUnit.Framework;
 
 namespace FibFramingTests;

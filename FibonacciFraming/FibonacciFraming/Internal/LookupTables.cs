@@ -1,4 +1,4 @@
-﻿namespace FibonacciFraming;
+﻿namespace FibonacciFraming.Internal;
 
 /// <summary>
 /// Look-up tables for encoding and decoding

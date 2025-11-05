@@ -3,7 +3,9 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Text;
 using FibonacciFraming;
+using FibonacciFraming.Internal;
 using NUnit.Framework;
+using Encoder = System.Text.Encoder;
 
 namespace FibFramingTests;
 
@@ -36,7 +38,7 @@ public class BasicTranscodingTests
         var percent = 100.0 * encoded.Length / input.Length;
         Console.WriteLine($"\r\n Original data = {input.Length} bytes; Encoded = {encoded.Length} bytes; {percent:0.0}%");
 
-        Assert.That(valid, Is.True);
+        Assert.That(valid.ValidMessage, Is.True);
     }
 
     [Test]
@@ -65,7 +67,7 @@ public class BasicTranscodingTests
         var percent = 100.0 * encoded.Length / input.Length;
         Console.WriteLine($"\r\n Original data = {input.Length} bytes; Encoded = {encoded.Length} bytes; {percent:0.0}%");
 
-        Assert.That(valid, Is.True);
+        Assert.That(valid.ValidMessage, Is.True);
     }
 
     [Test]
@@ -98,7 +100,7 @@ public class BasicTranscodingTests
         var percent = 100.0 * encoded.Length / input.Length;
         Console.WriteLine($"\r\n Original data = {input.Length} bytes; Encoded = {encoded.Length} bytes; {percent:0.0}%");
 
-        Assert.That(valid, Is.True);
+        Assert.That(valid.ValidMessage, Is.True);
     }
 
     [Test]
@@ -132,7 +134,27 @@ public class BasicTranscodingTests
         Console.WriteLine($"\r\n Original data = {input.Length} bytes; Encoded = {encoded.Length} bytes ({percent:0.0}%);" +
                           $" Encode: {encodeTime.ElapsedMilliseconds} ms; Decode: {decodeTime.ElapsedMilliseconds} ms;");
 
-        Assert.That(valid, Is.True);
+        Assert.That(valid.ValidMessage, Is.True);
+    }
+
+    [Test]
+    public void array_output_matches_stream_output()
+    {
+        const string message = "O Frugality! thou mother of ten thousand blessings--thou cook of fat beef and dainty greens!";
+
+        using var input   = new MemoryStream(Encoding.UTF8.GetBytes(message));
+
+        using var encoded = new MemoryStream();
+
+        input.Seek(0, SeekOrigin.Begin);
+        Transcoder.WriteMessageToStream(input, encoded);
+
+        input.Seek(0, SeekOrigin.Begin);
+        var bytes = Transcoder.GetMessageBytes(input);
+
+        var expected = encoded.ToArray();
+
+        Assert.That(bytes, Is.EqualTo(expected).AsCollection);
     }
 
     [Test]
@@ -150,8 +172,10 @@ public class BasicTranscodingTests
         var percent = 100.0 * encoded.Length / input.Length;
         Console.WriteLine($"Input: {input.Length} bytes; Encoded: {encoded.Length} bytes ({percent:0.0}%); Took {sw.ElapsedMilliseconds} ms;");
 
-        using var fileBmp = new Bitmap(512, 512, PixelFormat.Format24bppRgb);
-        using var encBmp = new Bitmap(512, 512, PixelFormat.Format24bppRgb);
+        const int size = 512;
+
+        using var fileBmp = new Bitmap(size, size, PixelFormat.Format24bppRgb);
+        using var encBmp  = new Bitmap(size, size, PixelFormat.Format24bppRgb);
 
         var fileBits = new BitwiseStreamWrapper(input, 10240); fileBits.Rewind();
         var encBits  = new BitwiseStreamWrapper(encoded, 10240); encBits.Rewind();
@@ -159,9 +183,9 @@ public class BasicTranscodingTests
         int repeatedOnes = 0;
         int repeatedZeros = 0;
 
-        for (int y = 0; y < 256; y++)
+        for (int y = 0; y < size; y++)
         {
-            for (int x = 0; x < 256; x++)
+            for (int x = 0; x < size; x++)
             {
                 var fileBit = fileBits.ReadBit() == 0;
                 var encBit  = encBits.ReadBit() == 0;
@@ -187,5 +211,41 @@ public class BasicTranscodingTests
 
         fileBmp.SaveBmp("FilePattern.bmp");
         encBmp.SaveBmp("EncodedPattern.bmp");
+    }
+
+    [Test]
+    public void barcode_demo()
+    {
+        // Spit out a bar-code using the unframed data.
+        // This is just a little toy.
+
+
+        var bars   = new List<bool>();
+        bars.AddRange(Transcoder.Raw.GetBitPattern(4));
+        bars.AddRange(Transcoder.Raw.GetBitPattern(2));
+        bars.AddRange(Transcoder.Raw.GetBitPattern(1));
+        bars.AddRange(Transcoder.Raw.GetBitPattern(0));
+        bars.AddRange(Transcoder.Raw.GetBitPattern(1));
+        bars.AddRange(Transcoder.Raw.GetBitPattern(3));
+        bars.AddRange(Transcoder.Raw.GetBitPattern(1));
+
+        Console.WriteLine(string.Join("", bars.Select(b => b ? '█' : ' ')));
+        Console.WriteLine(string.Join("", bars.Select(b => b ? '▚' : '▞')));
+
+        var width  = bars.Count;
+        var height = 32;
+
+        using var bmp = new Bitmap(width, height, PixelFormat.Format24bppRgb);
+
+        for (int x = 0; x < width; x++)
+        {
+            var color = bars[x] ? Color.Black : Color.White;
+            for (int y = 0; y < height; y++)
+            {
+                bmp.SetPixel(x, y, color);
+            }
+        }
+
+        bmp.SaveBmp("Barcode.bmp");
     }
 }

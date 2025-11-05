@@ -1,6 +1,6 @@
 ﻿using System.Text;
 
-namespace FibonacciFraming;
+namespace FibonacciFraming.Internal;
 
 /// <summary>
 /// A bitwise read/write wrapper around a byte stream.
@@ -14,6 +14,7 @@ public class BitwiseStreamWrapper
     private bool _inRunOut;
     private byte _readMask, _writeMask;
     private int  _nextOut,  _currentIn;
+    private long _bitsRead;
 
     /// <summary>
     ///
@@ -32,6 +33,13 @@ public class BitwiseStreamWrapper
         _nextOut = 0;
         _currentIn = -1;
     }
+
+    /// <summary>
+    /// Number of bits read since the last rewind.
+    /// </summary>
+    // ReSharper disable once ConvertToAutoProperty
+    // ReSharper disable once ConvertToAutoPropertyWithPrivateSetter
+    public long BitsRead => _bitsRead;
 
     /// <summary>
     /// Write the current pending output byte (if any)
@@ -119,6 +127,7 @@ public class BitwiseStreamWrapper
             _readMask >>= 1;
         }
 
+        _bitsRead++;
         return ((_currentIn & _readMask) != 0) ? 1 : 0;
     }
 
@@ -147,6 +156,7 @@ public class BitwiseStreamWrapper
             _readMask >>= 1;
         }
 
+        _bitsRead++;
         b = ((_currentIn & _readMask) != 0) ? 1 : 0;
         return true;
     }
@@ -163,6 +173,7 @@ public class BitwiseStreamWrapper
         _writeMask = 0x80;
         _nextOut = 0;
         _currentIn = 0;
+        _bitsRead = 0;
     }
 
     /// <summary>

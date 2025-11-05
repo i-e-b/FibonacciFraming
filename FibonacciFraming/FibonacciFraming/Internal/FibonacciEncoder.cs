@@ -2,7 +2,7 @@
 
 [assembly: InternalsVisibleTo("FibFramingTests")]
 
-namespace FibonacciFraming;
+namespace FibonacciFraming.Internal;
 
 /// <summary>
 /// Deals with Fibonacci numbers
@@ -110,19 +110,27 @@ internal static class FibonacciEncoder
 
         // 17 bit window, try to find 0110, guess a length (based on skipLeadIn), decode from there
 
-        var pattern         = 0;
-        var length          = 0;
-        var foundTerminator = false;
+        var bitsRead   = 0;
+        var pattern    = 0;
+        var length     = 0;
+        var terminator = false;
         while (input.TryReadBit(out var f))
         {
+            bitsRead++;
+
             pattern = ((pattern << 1) | (f & 1)) & maskWindow;
 
             if (pattern != 0 || !skipLeadIn) length++;
 
+            if (!skipLeadIn && bitsRead > 32) // signal went dead
+            {
+                return false;
+            }
+
             // have we got an end pattern?
             if ((pattern & 0b1111) != 0b0110) continue;
 
-            foundTerminator = true;
+            terminator = true;
             break;
         }
         if (length > 17) length = 17;
@@ -142,7 +150,7 @@ internal static class FibonacciEncoder
         }
 
         result = accum - 1;
-        return foundTerminator;
+        return terminator;
     }
 
     /// <summary>
